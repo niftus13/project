@@ -27,7 +27,6 @@ public class TodoServiceImple implements TodoService{
         .list(list)
         .total(total)
         .build();
-    
     }
 
   
