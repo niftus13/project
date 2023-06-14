@@ -11,15 +11,11 @@
 <body>
     <div layout:fragment = "content">
     <h1>READ</h1>
+      [[${todo}]]
     <ul class = "postsDiv">
-
     </ul>
 
-
-
-    
-
-    <div class="modal" tabindex="-1" role="dialog">
+    <div class="modal replyModal" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">
           <div class="modal-content">
             <div class="modal-header">
@@ -29,127 +25,154 @@
               </button>
             </div>
             <div class="modal-body">
-                <input type="text" name="title">
-                <input type="text" name="author">
+              <input name = "gno" readonly>
+              <input type="text" name="reply" value = "aaaa">
+              <input type="text" name="replyer" value = "BBB">
             </div>
             <div class="modal-footer">
-            <button type="button"  class="btn btn-danger btnDelete">DELETE</button>
+              <button type="button"  class="btn btn-info btnAdd">ADD</button>
+              <button type="button"  class="btn btn-danger btnDelete">DELETE</button>
               <button type="button" class="btn btn-primary btnModify">MODIFY</button>
               <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
             </div>
           </div>
         </div>
-
-        
       </div>
  
       <input type="text" name="inputTitle" >
       <input type="text" name="inputAuthor">
-      <button class="submit">등록하기</button>  
+      <button class="submit">등록하기</button>
+      
+      
+      <div>
+        <ul class = "replyUL">
+          <li>
+
+          </li>
+        </ul>
+      </div>
     
 
       <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
       <script src="/js/axios.js"></script>
     </div>
 
-  
-    </div>
 
 
-    <script layout:fragment="script">
+    <script layout:fragment="script" th:inline="javascript">
 
-        const path = "http://192.168.0.72:9090/posts"
-        const postsDiv = document.querySelector(".postsDiv")
-        const modalDiv = $(".modal")
-        // 
-        const inputTitle = document.querySelector('input[name="inputTitle"]')
-        const inputAuthor = document.querySelector('input[name="inputAuthor"]')
 
-        postsDiv.addEventListener("click", e => {
-        e.preventDefault()
+      const replyModal = new bootstrap.Modal(document.querySelector(".replyModal"))
+      const replyUL = document.querySelector(".replyUL")
+      const {tno} = [[${todo}]]
+
+      // 모달관리
+      const gnoInput = document.querySelector("input[name='gno']")
+      const replyInput = document.querySelector("input[name='reply']")
+      const replyerInput = document.querySelector("input[name='replyer']")
+
+
+      // 댓글목록 불러오기
+      const getRemoteList = async(pageNum) =>{
+        const {data} = await axios.get(`http://localhost:8080/replies/${tno}/list?page=${page}`)
+        return data
+      }
+
+      // 댓글 등록
+      const postRemoteAdd = async(reply) => {
+        const {data} = await axios.post(`http://localhost:8080/replies/${tno}/new`, reply)
+        return data
+      } 
+
+      let page = 1
+
+
+      //비동기 테스트
+      // getRemoteList(page).then(result =>{
+      //   console.log(result)
+      // })
+
+      // 비동기 등록 테스트
+      const reply = {tno:tno, reply: "test reply", replyer : "r1"}
+
+      postRemoteAdd(reply).then(result =>{
+        console.log("성공")
+      }).catch(e => {
+        console.log("실패")
+        console.log(e.response.data)
+      })
+
+      const loadReply = async(page, goEnd = false) => {
+        
+        const data = await getRemoteList(page)
+
+        console.log("loadReply..........")
+        console.log(data)
+
+        const {list, total} = data
+
+        let str = ""
+
+        for(let i = 0; i < list.length; i++){
+          
+          const {rno,reply,replyer,gno} = list[i]
+
+          str += `<li data-rno = ${rno} data-gno = ${gno} >${reply} <button>답글</botton></li>`
+
+        } // end for
+
+        replyUL.innerHTML = str
+
+      }
+
+      loadReply(page,true)
+
+      replyUL.addEventListener("click", (e) => {
         e.stopPropagation()
+        e.preventDefault()
 
         const target = e.target
-        console.log(target)
 
-        const pid = target.getAttribute("data-id")
+        console.dir(target)
 
-      console.log(pid)
+        const tag = target.tagName
+        
+        if(tag === 'LI'){
+          
+        }else if(tag === 'BUTTON'){
 
-      getPostOne(pid).then(post => {
-        console.log(post)
-        const {id,title,author} = post
-        //modal의 내용물을 변경 
-        document.querySelector('.modal-title').innerHTML = id 
-        document.querySelector('input[name="title"]').value = title
-        document.querySelector('input[name="author"]').value = author
-        modalDiv.modal('show')
-      })
+          const liObj = target.closest("li")
+          const gno = liObj.getAttribute("data-gno")
 
-    }, false)
+          gnoInput.value = gno
+          replyModal.show()
 
-    document.querySelector(".btnDelete").addEventListener("click",e => {
-
-      const id =  document.querySelector('.modal-title').innerHTML
-
-      deletePostOne(id).then(result => {
-        console.log(result)
-        modalDiv.modal('hide')
-        getDataDefault()
-      })
+        }
 
 
-    },false)
+      },false)
 
-    document.querySelector('.submit').addEventListener('click', (e)=>{
-         
+      document.querySelector('.btnAdd').addEventListener('click',e =>{
 
-            const title = inputTitle.value
-            const author = inputAuthor.value
+        const reply = {tno:tno,
+          gno:gnoInput.value,
+          reply:replyInput.value,
+          replyer:replyerInput.value
+        }
 
-            
+        console.log(reply)
 
-            addDataPost({title,author}).then(data =>{
-                console.log(data)
-                inputTitle.value =  ''
-                inputAuthor.value = ''
-
-            })
-            getDataDefault()
-
-    },false)
-
-    document.querySelector('.btnModify').addEventListener('click', (e) =>{
-        const id = document.querySelector('.modal-title').innerHTML
-        const title = document.querySelector('input[name="title"]').value
-        const author = document.querySelector('input[name="author"]').value
-
-        modifyPut({id,title,author}).then(data => {
-            console.log(data)
-            modalDiv.modal('hide')
-            getDataDefault()
+        postRemoteAdd(reply).then(result =>{
+          console.log("성공")
+          loadReply(page)
+        }).catch(e => {
+          console.log("실패")
+          console.log(e.response.data)
+          
         })
+        
 
-    })
-
-    function getDataDefault(){
-    getPosts().then(arr =>{
-    let str = ""
-    console.log(arr)
-    for(let i = 0; i<arr.length; i++){
-        const {id, title, author} = arr[i]
-        str += `<li data-id = ${id}>${title}</li>`
-    }
-    console.log(str)
-    postsDiv.innerHTML = str
-    })
-    }
-
-    getDataDefault()
-
-    
-      
-
+      },false)
 
 
     </script>
